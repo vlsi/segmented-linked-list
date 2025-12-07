@@ -776,8 +776,7 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
      */
     private static final class SegmentedSpliterator<E> implements Spliterator<E> {
         // DEBUG: Track total split calls to detect infinite splitting
-        private static final java.util.concurrent.atomic.AtomicInteger totalSplitCalls =
-            new java.util.concurrent.atomic.AtomicInteger(0);
+        // This counter is shared among a spliterator tree (root and its descendants)
         private static final int MAX_SPLIT_CALLS = 10000;
 
         private final SegmentedLinkedList<E> list;
@@ -786,6 +785,7 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
         private int remaining;
         private final int expectedModCount;
         private final boolean reversed;
+        private final java.util.concurrent.atomic.AtomicInteger splitCallCounter;
 
         SegmentedSpliterator(SegmentedLinkedList<E> list, Segment<E> segment,
                             int segmentIndex, int remaining, int expectedModCount) {
@@ -794,12 +794,20 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
 
         SegmentedSpliterator(SegmentedLinkedList<E> list, Segment<E> segment,
                             int segmentIndex, int remaining, int expectedModCount, boolean reversed) {
+            this(list, segment, segmentIndex, remaining, expectedModCount, reversed,
+                 new java.util.concurrent.atomic.AtomicInteger(0));
+        }
+
+        private SegmentedSpliterator(SegmentedLinkedList<E> list, Segment<E> segment,
+                            int segmentIndex, int remaining, int expectedModCount, boolean reversed,
+                            java.util.concurrent.atomic.AtomicInteger splitCallCounter) {
             this.list = list;
             this.current = segment;
             this.segmentIndex = segmentIndex;
             this.remaining = remaining;
             this.expectedModCount = expectedModCount;
             this.reversed = reversed;
+            this.splitCallCounter = splitCallCounter;
         }
 
         @Override
@@ -923,7 +931,7 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
         @Override
         public Spliterator<E> trySplit() {
             // DEBUG: Check if we've exceeded max split calls
-            int splitCount = totalSplitCalls.incrementAndGet();
+            int splitCount = splitCallCounter.incrementAndGet();
             if (splitCount > MAX_SPLIT_CALLS) {
                 throw new IllegalStateException("INFINITE SPLITTING DETECTED: trySplit() called " + splitCount + " times (max=" + MAX_SPLIT_CALLS + "), remaining=" + remaining + ", current=" + (current == null ? "null" : "segment") + ", segmentIndex=" + segmentIndex);
             }
@@ -961,6 +969,7 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                     }
                     if (toSkip < available) {
                         splitIndex -= toSkip;
+                        toSkip = 0;  // FIX: Set toSkip to 0 to mark that we successfully found the split point
                         break;
                     }
                     toSkip -= available;
@@ -983,6 +992,7 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                     }
                     if (toSkip < available) {
                         splitIndex += toSkip;
+                        toSkip = 0;  // Set toSkip to 0 to mark that we successfully found the split point
                         break;
                     }
                     toSkip -= available;
@@ -997,8 +1007,9 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
             }
 
             // Create spliterator for the prefix (first half)
+            // Share the same counter to track splits across the whole tree
             Spliterator<E> prefix = new SegmentedSpliterator<>(
-                    list, current, segmentIndex, splitSize, expectedModCount, reversed);
+                    list, current, segmentIndex, splitSize, expectedModCount, reversed, splitCallCounter);
 
             // Update this spliterator to cover the suffix (second half)
             current = splitSegment;
