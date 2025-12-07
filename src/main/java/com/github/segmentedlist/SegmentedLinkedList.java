@@ -980,7 +980,8 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                 }
             }
 
-            if (splitSegment == null) {
+            if (splitSegment == null || toSkip > 0) {
+                // Couldn't navigate to split point - can't split
                 return null;
             }
 
