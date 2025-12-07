@@ -849,10 +849,13 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                 // Process complete segments (backward)
                 while (r > 0 && seg != null) {
                     int toProcess = Math.min(r, seg.size);
-                    for (int i = seg.size - 1; i >= seg.size - toProcess; i--) {
-                        action.accept(seg.get(i));
+                    if (toProcess > 0) {
+                        for (int i = seg.size - 1; i >= seg.size - toProcess; i--) {
+                            action.accept(seg.get(i));
+                        }
+                        r -= toProcess;
                     }
-                    r -= toProcess;
+                    // Always move to next segment (even if current was empty)
                     seg = seg.prev;
                 }
             } else {
@@ -870,10 +873,13 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                 // Process complete segments
                 while (r > 0 && seg != null) {
                     int toProcess = Math.min(r, seg.size);
-                    for (int i = 0; i < toProcess; i++) {
-                        action.accept(seg.get(i));
+                    if (toProcess > 0) {
+                        for (int i = 0; i < toProcess; i++) {
+                            action.accept(seg.get(i));
+                        }
+                        r -= toProcess;
                     }
-                    r -= toProcess;
+                    // Always move to next segment (even if current was empty)
                     seg = seg.next;
                 }
             }
@@ -909,9 +915,10 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                 while (toSkip > 0 && splitSegment != null) {
                     int available = splitIndex + 1;
                     if (available <= 0) {
-                        splitSegment = splitSegment.prev;
-                        splitIndex = splitSegment == null ? 0 : splitSegment.size - 1;
-                        continue;
+                        // This can happen if splitIndex < 0
+                        // This shouldn't normally happen in a well-formed spliterator state
+                        // Return null to indicate we can't split further
+                        return null;
                     }
                     if (toSkip < available) {
                         splitIndex -= toSkip;
@@ -926,10 +933,10 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                 while (toSkip > 0 && splitSegment != null) {
                     int available = splitSegment.size - splitIndex;
                     if (available <= 0) {
-                        // Safety: skip segments with no available elements
-                        splitSegment = splitSegment.next;
-                        splitIndex = 0;
-                        continue;
+                        // This can happen if splitIndex >= segment.size or segment is empty
+                        // This shouldn't normally happen in a well-formed spliterator state
+                        // Return null to indicate we can't split further
+                        return null;
                     }
                     if (toSkip < available) {
                         splitIndex += toSkip;
