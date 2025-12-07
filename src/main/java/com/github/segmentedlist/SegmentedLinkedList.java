@@ -360,6 +360,80 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
     }
 
     @Override
+    public E get(int index) {
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+        }
+
+        Segment<E> segment;
+        int segmentIndex;
+
+        if (index < size / 2) {
+            // Navigate from the beginning (closer to start)
+            int remaining = index;
+            segment = first;
+            while (segment != null && remaining >= segment.size) {
+                remaining -= segment.size;
+                segment = segment.next;
+            }
+            segmentIndex = remaining;
+        } else {
+            // Navigate from the end (closer to end)
+            int remaining = size - index - 1;
+            segment = last;
+
+            // Navigate backward to find the segment
+            while (segment != null && remaining >= segment.size) {
+                remaining -= segment.size;
+                segment = segment.prev;
+            }
+
+            // Position is at (segment.size - remaining - 1)
+            segmentIndex = segment.size - remaining - 1;
+        }
+
+        return segment.get(segmentIndex);
+    }
+
+    @Override
+    public E set(int index, E element) {
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+        }
+
+        Segment<E> segment;
+        int segmentIndex;
+
+        if (index < size / 2) {
+            // Navigate from the beginning (closer to start)
+            int remaining = index;
+            segment = first;
+            while (segment != null && remaining >= segment.size) {
+                remaining -= segment.size;
+                segment = segment.next;
+            }
+            segmentIndex = remaining;
+        } else {
+            // Navigate from the end (closer to end)
+            int remaining = size - index - 1;
+            segment = last;
+
+            // Navigate backward to find the segment
+            while (segment != null && remaining >= segment.size) {
+                remaining -= segment.size;
+                segment = segment.prev;
+            }
+
+            // Position is at (segment.size - remaining - 1)
+            segmentIndex = segment.size - remaining - 1;
+        }
+
+        E oldValue = segment.get(segmentIndex);
+        segment.set(segmentIndex, element);
+        return oldValue;
+    }
+
+    @Override
     public ListIterator<E> listIterator(int index) {
         if (index < 0 || index > size) {
             throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
