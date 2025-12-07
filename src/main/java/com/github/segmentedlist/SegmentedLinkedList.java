@@ -659,6 +659,10 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                 // Within each segment, iterate backward
                 for (int i = seg.size - 1; i >= 0; i--) {
                     action.accept(seg.get(i));
+                    // Check for concurrent modification after each element
+                    if (forward.modCount != mc) {
+                        throw new ConcurrentModificationException();
+                    }
                 }
             }
 
@@ -762,6 +766,10 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
         for (Segment<E> seg = first; seg != null; seg = seg.next) {
             for (int i = 0; i < seg.size; i++) {
                 action.accept(seg.get(i));
+                // Check for concurrent modification after each element
+                if (modCount != mc) {
+                    throw new ConcurrentModificationException();
+                }
             }
         }
 
