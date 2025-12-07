@@ -775,6 +775,11 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
      * Provides efficient splitting at segment boundaries and direct element access.
      */
     private static final class SegmentedSpliterator<E> implements Spliterator<E> {
+        // DEBUG: Track total split calls to detect infinite splitting
+        private static final java.util.concurrent.atomic.AtomicInteger totalSplitCalls =
+            new java.util.concurrent.atomic.AtomicInteger(0);
+        private static final int MAX_SPLIT_CALLS = 10000;
+
         private final SegmentedLinkedList<E> list;
         private Segment<E> current;
         private int segmentIndex;
@@ -917,6 +922,12 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
 
         @Override
         public Spliterator<E> trySplit() {
+            // DEBUG: Check if we've exceeded max split calls
+            int splitCount = totalSplitCalls.incrementAndGet();
+            if (splitCount > MAX_SPLIT_CALLS) {
+                throw new IllegalStateException("INFINITE SPLITTING DETECTED: trySplit() called " + splitCount + " times (max=" + MAX_SPLIT_CALLS + "), remaining=" + remaining + ", current=" + (current == null ? "null" : "segment") + ", segmentIndex=" + segmentIndex);
+            }
+
             if (remaining <= 1 || current == null) {
                 return null;
             }
