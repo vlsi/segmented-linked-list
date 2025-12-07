@@ -372,7 +372,11 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
             // Navigate from the beginning (closer to start)
             int remaining = index;
             segment = first;
+            int iterCount = 0;
             while (segment != null && remaining >= segment.size) {
+                if (++iterCount > 10000) {
+                    throw new IllegalStateException("INFINITE LOOP DETECTED in navigation forward: iterations=" + iterCount + ", remaining=" + remaining + ", segment.size=" + (segment == null ? "null" : segment.size));
+                }
                 remaining -= segment.size;
                 segment = segment.next;
             }
@@ -383,7 +387,11 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
             segment = last;
 
             // Navigate backward to find the segment
+            int iterCount = 0;
             while (segment != null && remaining >= segment.size) {
+                if (++iterCount > 10000) {
+                    throw new IllegalStateException("INFINITE LOOP DETECTED in navigation backward: iterations=" + iterCount + ", remaining=" + remaining + ", segment.size=" + (segment == null ? "null" : segment.size));
+                }
                 remaining -= segment.size;
                 segment = segment.prev;
             }
@@ -408,7 +416,11 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
             // Navigate from the beginning (closer to start)
             int remaining = index;
             segment = first;
+            int iterCount = 0;
             while (segment != null && remaining >= segment.size) {
+                if (++iterCount > 10000) {
+                    throw new IllegalStateException("INFINITE LOOP DETECTED in navigation forward: iterations=" + iterCount + ", remaining=" + remaining + ", segment.size=" + (segment == null ? "null" : segment.size));
+                }
                 remaining -= segment.size;
                 segment = segment.next;
             }
@@ -419,7 +431,11 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
             segment = last;
 
             // Navigate backward to find the segment
+            int iterCount = 0;
             while (segment != null && remaining >= segment.size) {
+                if (++iterCount > 10000) {
+                    throw new IllegalStateException("INFINITE LOOP DETECTED in navigation backward: iterations=" + iterCount + ", remaining=" + remaining + ", segment.size=" + (segment == null ? "null" : segment.size));
+                }
                 remaining -= segment.size;
                 segment = segment.prev;
             }
@@ -847,7 +863,11 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                 }
 
                 // Process complete segments (backward)
+                int iterCount1 = 0;
                 while (r > 0 && seg != null) {
+                    if (++iterCount1 > 10000) {
+                        throw new IllegalStateException("INFINITE LOOP DETECTED in forEachRemaining backward: iterations=" + iterCount1 + ", r=" + r + ", seg.size=" + (seg == null ? "null" : seg.size) + ", remaining=" + remaining);
+                    }
                     int toProcess = Math.min(r, seg.size);
                     if (toProcess > 0) {
                         for (int i = seg.size - 1; i >= seg.size - toProcess; i--) {
@@ -871,7 +891,11 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                 }
 
                 // Process complete segments
+                int iterCount2 = 0;
                 while (r > 0 && seg != null) {
+                    if (++iterCount2 > 10000) {
+                        throw new IllegalStateException("INFINITE LOOP DETECTED in forEachRemaining forward: iterations=" + iterCount2 + ", r=" + r + ", seg.size=" + (seg == null ? "null" : seg.size) + ", remaining=" + remaining);
+                    }
                     int toProcess = Math.min(r, seg.size);
                     if (toProcess > 0) {
                         for (int i = 0; i < toProcess; i++) {
@@ -912,7 +936,11 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
 
             if (reversed) {
                 // For reversed, navigate backward
+                int iterCount3 = 0;
                 while (toSkip > 0 && splitSegment != null) {
+                    if (++iterCount3 > 10000) {
+                        throw new IllegalStateException("INFINITE LOOP DETECTED in trySplit reversed: iterations=" + iterCount3 + ", toSkip=" + toSkip + ", splitIndex=" + splitIndex + ", splitSegment.size=" + (splitSegment == null ? "null" : splitSegment.size) + ", remaining=" + remaining);
+                    }
                     int available = splitIndex + 1;
                     if (available <= 0) {
                         // This can happen if splitIndex < 0
@@ -930,7 +958,11 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                 }
             } else {
                 // For forward, navigate forward
+                int iterCount4 = 0;
                 while (toSkip > 0 && splitSegment != null) {
+                    if (++iterCount4 > 10000) {
+                        throw new IllegalStateException("INFINITE LOOP DETECTED in trySplit forward: iterations=" + iterCount4 + ", toSkip=" + toSkip + ", splitIndex=" + splitIndex + ", splitSegment.size=" + (splitSegment == null ? "null" : splitSegment.size) + ", remaining=" + remaining);
+                    }
                     int available = splitSegment.size - splitIndex;
                     if (available <= 0) {
                         // This can happen if splitIndex >= segment.size or segment is empty
@@ -1009,7 +1041,11 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                 // Navigate from the beginning (closer to start)
                 int remaining = index;
                 currentSegment = first;
+                int iterCount = 0;
                 while (currentSegment != null && remaining >= currentSegment.size) {
+                    if (++iterCount > 10000) {
+                        throw new IllegalStateException("INFINITE LOOP DETECTED in ListIterator forward: iterations=" + iterCount + ", remaining=" + remaining + ", currentSegment.size=" + (currentSegment == null ? "null" : currentSegment.size));
+                    }
                     remaining -= currentSegment.size;
                     currentSegment = currentSegment.next;
                 }
@@ -1020,7 +1056,11 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
                 currentSegment = last;
 
                 // Navigate backward to find the segment
+                int iterCount = 0;
                 while (currentSegment != null && remaining > currentSegment.size) {
+                    if (++iterCount > 10000) {
+                        throw new IllegalStateException("INFINITE LOOP DETECTED in ListIterator backward: iterations=" + iterCount + ", remaining=" + remaining + ", currentSegment.size=" + (currentSegment == null ? "null" : currentSegment.size));
+                    }
                     remaining -= currentSegment.size;
                     currentSegment = currentSegment.prev;
                 }
