@@ -18,7 +18,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Dependency versions -->
-        <junit.version>5.10.1</junit.version>
+        <junit.version>5.14.1</junit.version>
         <guava.version>33.0.0-jre</guava.version>
         <jmh.version>1.37</jmh.version>
     </properties>
@@ -52,14 +52,12 @@
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
             <version>${jmh.version}</version>
-            <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-generator-annprocess</artifactId>
             <version>${jmh.version}</version>
-            <scope>test</scope>
         </dependency>
 
         <!-- JOL for memory layout analysis -->
@@ -79,6 +77,13 @@
                 <version>3.11.0</version>
                 <configuration>
                     <release>21</release>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.openjdk.jmh</groupId>
+                            <artifactId>jmh-generator-annprocess</artifactId>
+                            <version>${jmh.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
 
@@ -101,6 +106,7 @@
                         </goals>
                         <configuration>
                             <finalName>benchmarks</finalName>
+                            <shadeTestJar>true</shadeTestJar>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>org.openjdk.jmh.Main</mainClass>

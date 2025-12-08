@@ -11,33 +11,37 @@ import junit.framework.TestSuite;
 import java.util.List;
 
 /**
- * Comprehensive test suite for {@link SegmentedLinkedList} using Guava testlib.
- * This generates hundreds of automated tests covering all List contract requirements.
+ * Comparison test suites for multiple List implementations using Guava testlib.
+ * For each {@link Implementation}, this generates a suite covering the List contract,
+ * allowing side-by-side verification (e.g., {@link SegmentedLinkedList}, {@link java.util.LinkedList}, etc.).
  */
-public class SegmentedLinkedListTest {
+public class ListTest {
 
     public static Test suite() {
-        TestSuite suite = new TestSuite("SegmentedLinkedList");
-        suite.addTest(createGeneralTestSuite());
+        TestSuite suite = new TestSuite("Guava list tests");
+        for (Implementation value : Implementation.values()) {
+            TestedListProvider provider = new TestedListProvider(value);
+            suite.addTest(createGeneralTestSuite(provider));
+        }
         return suite;
     }
 
     /**
      * Creates a comprehensive test suite for general List operations.
      */
-    private static Test createGeneralTestSuite() {
+    private static Test createGeneralTestSuite(TestedListProvider provider) {
         return ListTestSuiteBuilder
                 .using(new TestStringListGenerator() {
                     @Override
                     protected List<String> create(String[] elements) {
-                        SegmentedLinkedList<String> list = new SegmentedLinkedList<>();
+                        List<String> list = provider.getList();
                         for (String element : elements) {
                             list.add(element);
                         }
                         return list;
                     }
                 })
-                .named("SegmentedLinkedList")
+                .named(provider.implementationName())
                 .withFeatures(
                         ListFeature.GENERAL_PURPOSE,
                         CollectionFeature.ALLOWS_NULL_VALUES,
