@@ -61,6 +61,14 @@
             <version>${jmh.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- JOL for memory layout analysis -->
+        <dependency>
+            <groupId>org.openjdk.jol</groupId>
+            <artifactId>jol-core</artifactId>
+            <version>0.17</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
