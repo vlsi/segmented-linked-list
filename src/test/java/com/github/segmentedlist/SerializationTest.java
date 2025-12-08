@@ -1,6 +1,8 @@
 package com.github.segmentedlist;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.*;
 import java.util.Arrays;
@@ -9,53 +11,57 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for serialization and cloning functionality of {@link SegmentedLinkedList}.
+ * Comparison tests for serialization and cloning functionality across multiple List implementations.
+ * Executed side-by-side via {@link org.junit.jupiter.api.TestTemplate} and {@link ExtendWith}
+ * with {@link ComparisonTestExtension}, using {@link TestedListProvider} to supply the concrete
+ * implementation under test (e.g., {@link SegmentedLinkedList}, {@link java.util.LinkedList}, or others).
  */
+@ExtendWith(ComparisonTestExtension.class)
 class SerializationTest {
 
-    @Test
-    void testSerializationEmpty() throws Exception {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>();
-        SegmentedLinkedList<String> deserialized = serializeAndDeserialize(original);
+    @TestTemplate
+    void testSerializationEmpty(TestedListProvider provider) throws Exception {
+        List<String> original = provider.getList();
+        List<String> deserialized = serializeAndDeserialize(original);
 
         assertEquals(original.size(), deserialized.size());
         assertTrue(deserialized.isEmpty());
     }
 
-    @Test
-    void testSerializationSingleElement() throws Exception {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>();
+    @TestTemplate
+    void testSerializationSingleElement(TestedListProvider provider) throws Exception {
+        List<String> original = provider.getList();
         original.add("test");
 
-        SegmentedLinkedList<String> deserialized = serializeAndDeserialize(original);
+        List<String> deserialized = serializeAndDeserialize(original);
 
         assertEquals(original.size(), deserialized.size());
         assertEquals(original, deserialized);
     }
 
-    @Test
-    void testSerializationMultipleSegments() throws Exception {
-        SegmentedLinkedList<Integer> original = new SegmentedLinkedList<>();
+    @TestTemplate
+    void testSerializationMultipleSegments(TestedListProvider provider) throws Exception {
+        List<Integer> original = provider.getList();
         // Add enough elements to span multiple segments (16 elements per segment)
         for (int i = 0; i < 50; i++) {
             original.add(i);
         }
 
-        SegmentedLinkedList<Integer> deserialized = serializeAndDeserialize(original);
+        List<Integer> deserialized = serializeAndDeserialize(original);
 
         assertEquals(original.size(), deserialized.size());
         assertEquals(original, deserialized);
     }
 
-    @Test
-    void testSerializationWithNulls() throws Exception {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>();
+    @TestTemplate
+    void testSerializationWithNulls(TestedListProvider provider) throws Exception {
+        List<String> original = provider.getList();
         original.add("first");
         original.add(null);
         original.add("third");
         original.add(null);
 
-        SegmentedLinkedList<String> deserialized = serializeAndDeserialize(original);
+        List<String> deserialized = serializeAndDeserialize(original);
 
         assertEquals(original.size(), deserialized.size());
         assertEquals(original, deserialized);
@@ -63,21 +69,21 @@ class SerializationTest {
         assertNull(deserialized.get(3));
     }
 
-    @Test
-    void testCloneEmpty() {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>();
-        SegmentedLinkedList<String> clone = original.clone();
+    @TestTemplate
+    void testCloneEmpty(TestedListProvider provider) {
+        List<String> original = provider.getList();
+        List<String> clone = provider.clone(original);
 
         assertEquals(original, clone);
         assertNotSame(original, clone);
     }
 
-    @Test
-    void testCloneSingleElement() {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>();
+    @TestTemplate
+    void testCloneSingleElement(TestedListProvider provider) {
+        List<String> original = provider.getList();
         original.add("test");
 
-        SegmentedLinkedList<String> clone = original.clone();
+        List<String> clone = provider.clone(original);
 
         assertEquals(original, clone);
         assertNotSame(original, clone);
@@ -87,14 +93,14 @@ class SerializationTest {
         assertNotEquals(original.size(), clone.size());
     }
 
-    @Test
-    void testCloneMultipleSegments() {
-        SegmentedLinkedList<Integer> original = new SegmentedLinkedList<>();
+    @TestTemplate
+    void testCloneMultipleSegments(TestedListProvider provider) {
+        List<Integer> original = provider.getList();
         for (int i = 0; i < 50; i++) {
             original.add(i);
         }
 
-        SegmentedLinkedList<Integer> clone = original.clone();
+        List<Integer> clone = provider.clone(original);
 
         assertEquals(original, clone);
         assertNotSame(original, clone);
@@ -104,14 +110,14 @@ class SerializationTest {
         assertNotEquals(original.get(25), clone.get(25));
     }
 
-    @Test
-    void testCloneWithNulls() {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>();
+    @TestTemplate
+    void testCloneWithNulls(TestedListProvider provider) {
+        List<String> original = provider.getList();
         original.add("first");
         original.add(null);
         original.add("third");
 
-        SegmentedLinkedList<String> clone = original.clone();
+        List<String> clone = provider.clone(original);
 
         assertEquals(original, clone);
         assertNull(clone.get(1));
@@ -122,13 +128,13 @@ class SerializationTest {
         assertEquals("modified", clone.get(1));
     }
 
-    @Test
-    void testCloneIndependence() {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>(
+    @TestTemplate
+    void testCloneIndependence(TestedListProvider provider) {
+        List<String> original = provider.getList(
                 Arrays.asList("a", "b", "c", "d", "e")
         );
 
-        SegmentedLinkedList<String> clone = original.clone();
+        List<String> clone = provider.clone(original);
 
         // Modify original
         original.add("f");
@@ -141,14 +147,14 @@ class SerializationTest {
         assertEquals("c", clone.get(2));
     }
 
-    @Test
-    void testSerializationPreservesOrder() throws Exception {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>();
+    @TestTemplate
+    void testSerializationPreservesOrder(TestedListProvider provider) throws Exception {
+        List<String> original = provider.getList();
         for (int i = 0; i < 100; i++) {
             original.add("element-" + i);
         }
 
-        SegmentedLinkedList<String> deserialized = serializeAndDeserialize(original);
+        List<String> deserialized = serializeAndDeserialize(original);
 
         assertEquals(original.size(), deserialized.size());
         for (int i = 0; i < original.size(); i++) {
@@ -157,15 +163,15 @@ class SerializationTest {
         }
     }
 
-    @Test
-    void testSerializationAfterDequeOperations() throws Exception {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>();
+    @TestTemplate
+    void testSerializationAfterDequeOperations(TestedListProvider provider) throws Exception {
+        List<String> original = provider.getList();
         original.addFirst("first");
         original.addLast("last");
         original.addFirst("new-first");
         original.addLast("new-last");
 
-        SegmentedLinkedList<String> deserialized = serializeAndDeserialize(original);
+        List<String> deserialized = serializeAndDeserialize(original);
 
         assertEquals(original.size(), deserialized.size());
         assertEquals("new-first", deserialized.getFirst());
@@ -173,14 +179,15 @@ class SerializationTest {
         assertEquals(original, deserialized);
     }
 
-    @Test
-    void testCloneReversedView() {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>(
+    @TestTemplate
+    void testCloneReversedView(TestedListProvider provider) {
+        Assumptions.assumeTrue(provider.implementation() == Implementation.SEGMENTED);
+        List<String> original = provider.getList(
                 Arrays.asList("a", "b", "c", "d", "e")
         );
 
-        SegmentedLinkedList<String> reversed = original.reversed();
-        SegmentedLinkedList<String> clone = reversed.clone();
+        List<String> reversed = original.reversed();
+        List<String> clone = provider.clone(reversed);
 
         // Clone should be a reversed view with correct order
         assertEquals(5, clone.size());
@@ -203,11 +210,12 @@ class SerializationTest {
         assertEquals("a", original.get(0));
     }
 
-    @Test
-    void testCloneReversedViewEmpty() {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>();
-        SegmentedLinkedList<String> reversed = original.reversed();
-        SegmentedLinkedList<String> clone = reversed.clone();
+    @TestTemplate
+    void testCloneReversedViewEmpty(TestedListProvider provider) {
+        Assumptions.assumeTrue(provider.implementation() == Implementation.SEGMENTED);
+        List<String> original = provider.getList();
+        List<String> reversed = original.reversed();
+        List<String> clone = provider.clone(reversed);
 
         assertTrue(clone.isEmpty());
         assertNotSame(reversed, clone);
@@ -218,16 +226,18 @@ class SerializationTest {
         assertEquals(1, clone.size());
     }
 
-    @Test
-    void testCloneReversedViewMultipleSegments() {
-        SegmentedLinkedList<Integer> original = new SegmentedLinkedList<>();
+    @TestTemplate
+    void testCloneReversedViewMultipleSegments(TestedListProvider provider) {
+        Assumptions.assumeTrue(provider.implementation() == Implementation.SEGMENTED);
+
+        List<Integer> original = provider.getList();
         // Add enough elements to span multiple segments (16 elements per segment)
         for (int i = 0; i < 50; i++) {
             original.add(i);
         }
 
-        SegmentedLinkedList<Integer> reversed = original.reversed();
-        SegmentedLinkedList<Integer> clone = reversed.clone();
+        List<Integer> reversed = original.reversed();
+        List<Integer> clone = provider.clone(reversed);
 
         // Verify reversed order
         assertEquals(50, clone.size());
@@ -244,15 +254,15 @@ class SerializationTest {
         assertEquals(49, original.get(49));
     }
 
-    @Test
-    void testCloneReversedViewDoubleReverse() {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>(
+    @TestTemplate
+    void testCloneReversedViewDoubleReverse(TestedListProvider provider) {
+        List<String> original = provider.getList(
                 Arrays.asList("a", "b", "c")
         );
 
-        SegmentedLinkedList<String> reversed = original.reversed();
-        SegmentedLinkedList<String> doubleReversed = reversed.reversed();
-        SegmentedLinkedList<String> clone = doubleReversed.clone();
+        List<String> reversed = original.reversed();
+        List<String> doubleReversed = reversed.reversed();
+        List<String> clone = provider.clone(doubleReversed);
 
         // Double reverse should give original order
         assertEquals("a", clone.get(0));
@@ -265,14 +275,15 @@ class SerializationTest {
         assertEquals(4, clone.size());
     }
 
-    @Test
-    void testCloneReversedViewPreservesReversedBehavior() {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>(
+    @TestTemplate
+    void testCloneReversedViewPreservesReversedBehavior(TestedListProvider provider) {
+        Assumptions.assumeTrue(provider.implementation() == Implementation.SEGMENTED);
+        List<String> original = provider.getList(
                 Arrays.asList("first", "second", "third")
         );
 
-        SegmentedLinkedList<String> reversed = original.reversed();
-        SegmentedLinkedList<String> clone = reversed.clone();
+        List<String> reversed = original.reversed();
+        List<String> clone = provider.clone(reversed);
 
         // Clone should behave as a reversed view
         clone.addFirst("new-first"); // This adds to the "reversed" first position
@@ -284,33 +295,33 @@ class SerializationTest {
         assertEquals(4, clone.size());
     }
 
-    @Test
-    void testSerializeReversedView_ThrowsException() {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>(
+    @TestTemplate
+    void testSerializeReversedView_ThrowsException(TestedListProvider provider) {
+        List<String> original = provider.getList(
                 Arrays.asList("a", "b", "c")
         );
-        SegmentedLinkedList<String> reversed = original.reversed();
+        List<String> reversed = original.reversed();
 
         // Attempting to serialize a reversed view should throw InvalidObjectException
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        assertThrows(java.io.InvalidObjectException.class, () -> {
+        assertThrows(java.io.ObjectStreamException.class, () -> {
             try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
                 oos.writeObject(reversed);
             }
         });
     }
 
-    @Test
-    void testSerializeReversedView_ForwardListWorks() throws Exception {
-        SegmentedLinkedList<String> original = new SegmentedLinkedList<>(
+    @TestTemplate
+    void testSerializeReversedView_ForwardListWorks(TestedListProvider provider) throws Exception {
+        List<String> original = provider.getList(
                 Arrays.asList("a", "b", "c")
         );
 
         // Create reversed view
-        SegmentedLinkedList<String> reversed = original.reversed();
+        List<String> reversed = original.reversed();
 
         // Reversed view cannot be serialized
-        assertThrows(java.io.InvalidObjectException.class, () -> {
+        assertThrows(java.io.ObjectStreamException.class, () -> {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
                 oos.writeObject(reversed);
@@ -318,7 +329,7 @@ class SerializationTest {
         });
 
         // But original list can be serialized normally
-        SegmentedLinkedList<String> deserialized = serializeAndDeserialize(original);
+        List<String> deserialized = serializeAndDeserialize(original);
         assertEquals(original, deserialized);
         assertEquals("a", deserialized.get(0));
         assertEquals("b", deserialized.get(1));
@@ -326,7 +337,7 @@ class SerializationTest {
     }
 
     @SuppressWarnings("unchecked")
-    private <E> SegmentedLinkedList<E> serializeAndDeserialize(SegmentedLinkedList<E> list)
+    private <E> List<E> serializeAndDeserialize(List<E> list)
             throws IOException, ClassNotFoundException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
@@ -335,7 +346,7 @@ class SerializationTest {
 
         ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
         try (ObjectInputStream ois = new ObjectInputStream(bais)) {
-            return (SegmentedLinkedList<E>) ois.readObject();
+            return (List<E>) ois.readObject();
         }
     }
 }

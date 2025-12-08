@@ -3,6 +3,7 @@ package com.github.segmentedlist;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
+import com.github.arraybackedlist.ArrayBackedLinkedList;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -28,17 +29,20 @@ public class SegmentedLinkedListBenchmark {
     private List<Integer> segmentedList;
     private List<Integer> linkedList;
     private List<Integer> arrayList;
+    private List<Integer> arrayBackedList;
 
     @Setup(Level.Iteration)
     public void setup() {
         segmentedList = new SegmentedLinkedList<>();
         linkedList = new LinkedList<>();
         arrayList = new ArrayList<>();
+        arrayBackedList = new ArrayBackedLinkedList<>();
 
         for (int i = 0; i < size; i++) {
             segmentedList.add(i);
             linkedList.add(i);
             arrayList.add(i);
+            arrayBackedList.add(i);
         }
     }
 
@@ -65,6 +69,15 @@ public class SegmentedLinkedListBenchmark {
     @Benchmark
     public List<Integer> addLast_ArrayList() {
         List<Integer> list = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            list.add(i);
+        }
+        return list;
+    }
+
+    @Benchmark
+    public List<Integer> addLast_ArrayBackedLinkedList() {
+        List<Integer> list = new ArrayBackedLinkedList<>();
         for (int i = 0; i < size; i++) {
             list.add(i);
         }
@@ -100,6 +113,15 @@ public class SegmentedLinkedListBenchmark {
         return list;
     }
 
+    @Benchmark
+    public List<Integer> addFirst_ArrayBackedLinkedList() {
+        ArrayBackedLinkedList<Integer> list = new ArrayBackedLinkedList<>();
+        for (int i = 0; i < size; i++) {
+            list.addFirst(i);
+        }
+        return list;
+    }
+
     // ==================== GET BENCHMARKS ====================
 
     @Benchmark
@@ -123,6 +145,13 @@ public class SegmentedLinkedListBenchmark {
         }
     }
 
+    @Benchmark
+    public void get_ArrayBackedLinkedList(Blackhole bh) {
+        for (int i = 0; i < size; i++) {
+            bh.consume(arrayBackedList.get(i));
+        }
+    }
+
     // ==================== ITERATOR BENCHMARKS ====================
 
     @Benchmark
@@ -142,6 +171,13 @@ public class SegmentedLinkedListBenchmark {
     @Benchmark
     public void iterate_ArrayList(Blackhole bh) {
         for (Integer value : arrayList) {
+            bh.consume(value);
+        }
+    }
+
+    @Benchmark
+    public void iterate_ArrayBackedLinkedList(Blackhole bh) {
+        for (Integer value : arrayBackedList) {
             bh.consume(value);
         }
     }
@@ -172,6 +208,14 @@ public class SegmentedLinkedListBenchmark {
         }
     }
 
+    @Benchmark
+    public void removeFirst_ArrayBackedLinkedList() {
+        ArrayBackedLinkedList<Integer> list = new ArrayBackedLinkedList<>(arrayBackedList);
+        while (!list.isEmpty()) {
+            list.removeFirst();
+        }
+    }
+
     // ==================== REMOVE LAST BENCHMARKS ====================
 
     @Benchmark
@@ -198,6 +242,14 @@ public class SegmentedLinkedListBenchmark {
         }
     }
 
+    @Benchmark
+    public void removeLast_ArrayBackedLinkedList() {
+        ArrayBackedLinkedList<Integer> list = new ArrayBackedLinkedList<>(arrayBackedList);
+        while (!list.isEmpty()) {
+            list.removeLast();
+        }
+    }
+
     // ==================== ADD MIDDLE BENCHMARKS ====================
 
     @Benchmark
@@ -221,6 +273,13 @@ public class SegmentedLinkedListBenchmark {
         list.add(middle, 999);
     }
 
+    @Benchmark
+    public void addMiddle_ArrayBackedLinkedList() {
+        List<Integer> list = new ArrayBackedLinkedList<>(arrayBackedList);
+        int middle = list.size() / 2;
+        list.add(middle, 999);
+    }
+
     // ==================== CONTAINS BENCHMARKS ====================
 
     @Benchmark
@@ -236,6 +295,11 @@ public class SegmentedLinkedListBenchmark {
     @Benchmark
     public boolean contains_ArrayList() {
         return arrayList.contains(size / 2);
+    }
+
+    @Benchmark
+    public boolean contains_ArrayBackedLinkedList() {
+        return arrayBackedList.contains(size / 2);
     }
 
     // ==================== MEMORY FOOTPRINT TEST ====================
@@ -268,6 +332,16 @@ public class SegmentedLinkedListBenchmark {
     @Measurement(iterations = 1)
     public List<Integer> memoryFootprint_ArrayList() {
         List<Integer> list = new ArrayList<>();
+        for (int i = 0; i < 100000; i++) {
+            list.add(i);
+        }
+        return list;
+    }
+
+    @Benchmark
+    @Measurement(iterations = 1)
+    public List<Integer> memoryFootprint_ArrayBackedLinkedList() {
+        List<Integer> list = new ArrayBackedLinkedList<>();
         for (int i = 0; i < 100000; i++) {
             list.add(i);
         }
