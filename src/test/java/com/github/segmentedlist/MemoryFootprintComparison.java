@@ -18,8 +18,8 @@ public class MemoryFootprintComparison {
         System.out.println();
 
         // Print table header
-        System.out.printf("%-10s %-20s %-20s %-20s %-15s %-15s%n",
-                "Elements", "ArrayList (bytes)", "LinkedList (bytes)", "SegmentedList (bytes)",
+        System.out.printf("%10s %12s %12s %12s %-15s %-14s%n",
+                "Elements", "ArrayList", "LinkedList", "SegmentedList",
                 "SL vs AL (%)", "SL vs LL (%)");
         System.out.println("-".repeat(120));
 
@@ -32,7 +32,7 @@ public class MemoryFootprintComparison {
             double vsArrayList = ((double) segmentedListSize / arrayListSize - 1) * 100;
             double vsLinkedList = ((double) segmentedListSize / linkedListSize - 1) * 100;
 
-            System.out.printf("%-10d %-20d %-20d %-20d %+14.1f%% %+14.1f%%%n",
+            System.out.printf("%10d %12d %12d %12d %+12.1f%% %+13.1f%%%n",
                     size, arrayListSize, linkedListSize, segmentedListSize,
                     vsArrayList, vsLinkedList);
         }
@@ -42,7 +42,7 @@ public class MemoryFootprintComparison {
         System.out.println("-".repeat(120));
 
         // Calculate and display statistics for key sizes
-        int[] keySizes = {0, 1, 10, 50, 100};
+        int[] keySizes = {0, 1, 2, 10, 50, 100};
         System.out.println();
         System.out.printf("%-10s %-20s %-20s %-20s%n",
                 "Elements", "ArrayList (bytes)", "LinkedList (bytes)", "SegmentedList (bytes)");
@@ -80,25 +80,25 @@ public class MemoryFootprintComparison {
     }
 
     private static long measureArrayList(int size) {
-        List<Integer> list = new ArrayList<>();
+        List<String> list = new ArrayList<>();
         for (int i = 0; i < size; i++) {
-            list.add(i);
+            list.add("");
         }
         return GraphLayout.parseInstance(list).totalSize();
     }
 
     private static long measureLinkedList(int size) {
-        List<Integer> list = new LinkedList<>();
+        List<String> list = new LinkedList<>();
         for (int i = 0; i < size; i++) {
-            list.add(i);
+            list.add("");
         }
         return GraphLayout.parseInstance(list).totalSize();
     }
 
     private static long measureSegmentedList(int size) {
-        List<Integer> list = new SegmentedLinkedList<>();
+        List<String> list = new SegmentedLinkedList<>();
         for (int i = 0; i < size; i++) {
-            list.add(i);
+            list.add("");
         }
         return GraphLayout.parseInstance(list).totalSize();
     }

@@ -43,7 +43,7 @@ public class SegmentedLinkedList<E> extends AbstractSequentialList<E>
     /**
      * The number of elements each segment can hold.
      */
-    private static final int SEGMENT_SIZE = 16;
+    private static final int SEGMENT_SIZE = 8;
 
     /**
      * The first segment in the list.
