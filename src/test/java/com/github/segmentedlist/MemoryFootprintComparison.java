@@ -24,7 +24,7 @@ public class MemoryFootprintComparison {
         System.out.println("-".repeat(120));
 
         // Test with 1 to 100 elements
-        for (int size = 1; size <= 100; size++) {
+        for (int size = 0; size <= 100; size++) {
             long arrayListSize = measureArrayList(size);
             long linkedListSize = measureLinkedList(size);
             long segmentedListSize = measureSegmentedList(size);
@@ -42,7 +42,7 @@ public class MemoryFootprintComparison {
         System.out.println("-".repeat(120));
 
         // Calculate and display statistics for key sizes
-        int[] keySizes = {1, 10, 50, 100};
+        int[] keySizes = {0, 1, 10, 50, 100};
         System.out.println();
         System.out.printf("%-10s %-20s %-20s %-20s%n",
                 "Elements", "ArrayList (bytes)", "LinkedList (bytes)", "SegmentedList (bytes)");
@@ -61,7 +61,7 @@ public class MemoryFootprintComparison {
         System.out.println("Memory per element (approximate):");
         System.out.println("-".repeat(75));
 
-        for (int size : new int[]{10, 50, 100}) {
+        for (int size : keySizes) {
             long alSize = measureArrayList(size);
             long llSize = measureLinkedList(size);
             long slSize = measureSegmentedList(size);
