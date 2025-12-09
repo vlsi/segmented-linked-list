@@ -1,17 +1,19 @@
 package com.github.segmentedlist;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ExtendWith(ComparisonTestExtension.class)
 class SpliteratorWithNullsTest {
 
-    @Test
-    void testSpliteratorWithNulls() {
-        SegmentedLinkedList<String> list = new SegmentedLinkedList<>(
+    @TestTemplate
+    void testSpliteratorWithNulls(TestedListProvider provider) {
+        List<String> list = provider.getList(
                 Arrays.asList("a", null, "b", null, "c")
         );
 
