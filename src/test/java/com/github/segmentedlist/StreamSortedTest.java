@@ -1,17 +1,19 @@
 package com.github.segmentedlist;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ExtendWith(ComparisonTestExtension.class)
 class StreamSortedTest {
 
-    @Test
-    void testStreamSorted() {
-        SegmentedLinkedList<Integer> list = new SegmentedLinkedList<>(
+    @TestTemplate
+    void testStreamSorted(TestedListProvider provider) {
+        List<Integer> list = provider.getList(
                 Arrays.asList(5, 2, 8, 1, 9, 3)
         );
 

@@ -1,16 +1,18 @@
 package com.github.segmentedlist;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ExtendWith(ComparisonTestExtension.class)
 class MultipleSplitsTest {
 
-    @Test
-    void testMultipleSplits() {
-        SegmentedLinkedList<Integer> list = new SegmentedLinkedList<>();
+    @TestTemplate
+    void testMultipleSplits(TestedListProvider provider) {
+        List<Integer> list = provider.getList();
         for (int i = 0; i < 1000; i++) {
             list.add(i);
         }

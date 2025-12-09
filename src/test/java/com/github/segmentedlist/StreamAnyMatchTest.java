@@ -1,16 +1,18 @@
 package com.github.segmentedlist;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ExtendWith(ComparisonTestExtension.class)
 class StreamAnyMatchTest {
 
-    @Test
-    void testStreamAnyMatch() {
-        SegmentedLinkedList<Integer> list = new SegmentedLinkedList<>(
+    @TestTemplate
+    void testStreamAnyMatch(TestedListProvider provider) {
+        List<Integer> list = provider.getList(
                 Arrays.asList(1, 2, 3, 4, 5)
         );
 
