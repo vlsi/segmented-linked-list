@@ -44,43 +44,61 @@ Traditional `LinkedList` stores one element per node, leading to:
 ## Usage
 
 ```java
-import com.github.segmentedlist.SegmentedLinkedList;
+import io.github.vlsi.lists.SegmentedLinkedList;
 
 // Create an empty list
 SegmentedLinkedList<String> list = new SegmentedLinkedList<>();
 
 // Add elements
-list.add("first");
-list.addLast("last");
-list.addFirst("new-first");
+list.
 
-// Access elements
-String element = list.get(0);
-String first = list.getFirst();
-String last = list.getLast();
+        add("first");
+list.
+
+        addLast("last");
+list.
+
+        addFirst("new-first");
+
+        // Access elements
+        String element = list.get(0);
+        String first = list.getFirst();
+        String last = list.getLast();
 
 // Use as Deque
-list.push("top");
-String popped = list.pop();
+list.
+
+        push("top");
+
+        String popped = list.pop();
 
 // Iterate
-for (String item : list) {
-    System.out.println(item);
+for(
+        String item :list){
+        System.out.
+
+        println(item);
 }
 
-// Use ListIterator
-ListIterator<String> it = list.listIterator();
-while (it.hasNext()) {
-    String item = it.next();
-    it.set(item.toUpperCase()); // Modify during iteration
-}
+        // Use ListIterator
+        ListIterator<String> it = list.listIterator();
+while(it.
 
-// Clone
-SegmentedLinkedList<String> clone = list.clone();
+        hasNext()){
+        String item = it.next();
+    it.
 
-// Serialization (implements Serializable)
-ObjectOutputStream oos = new ObjectOutputStream(fileOut);
-oos.writeObject(list);
+        set(item.toUpperCase()); // Modify during iteration
+        }
+
+        // Clone
+        SegmentedLinkedList<String> clone = list.clone();
+
+        // Serialization (implements Serializable)
+        ObjectOutputStream oos = new ObjectOutputStream(fileOut);
+oos.
+
+        writeObject(list);
 ```
 
 ## Building
