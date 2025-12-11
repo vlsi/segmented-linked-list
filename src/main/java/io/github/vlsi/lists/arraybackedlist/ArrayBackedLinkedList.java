@@ -129,6 +129,20 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
         link[idx] = prevIdx + 1 ^ nextIdx + 1;
     }
 
+    // Pack two ints (prev, curr) into a single long to avoid array allocation.
+    // High 32 bits = prev, low 32 bits = curr.
+    private static long packPrevCurr(int prev, int curr) {
+        return ((long) prev << 32) | (curr & 0xFFFFFFFFL);
+    }
+
+    private static int unpackPrev(long packed) {
+        return (int) (packed >>> 32);
+    }
+
+    private static int unpackCurr(long packed) {
+        return (int) packed;
+    }
+
     // Helper that inserts idx between before and after in O(1) using XOR math.
     // before and after are adjacent neighbors in the current list (either may be -1 for ends).
     private void linkBetween(int before, int idx, int after) {
@@ -151,14 +165,14 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
     }
 
     // Locate physical index at logical index along with its previous physical neighbor.
-    // Returns an array [prev, curr]. For index==size, returns [tail, -1].
-    private int[] locateWithPrev(int index) {
+    // Returns a packed long where high 32 bits = prev, low 32 bits = curr. For index==size, returns pack(tail, -1).
+    private long locateWithPrev(int index) {
         if (index < 0 || index > size) throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
         if (index == size) {
-            return new int[]{tail, -1};
+            return packPrevCurr(tail, -1);
         }
         if (index == 0) {
-            return new int[]{-1, head};
+            return packPrevCurr(-1, head);
         }
         if (index < (size >> 1)) {
             int prevIdx = -1;
@@ -168,7 +182,7 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
                 prevIdx = i;
                 i = nxt;
             }
-            return new int[]{prevIdx, i};
+            return packPrevCurr(prevIdx, i);
         } else {
             int nextIdx = -1;
             int i = tail;
@@ -179,7 +193,7 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
             }
             // i is curr at position index, nextIdx is its right neighbor
             int prevIdx = getPrev(i, nextIdx);
-            return new int[]{prevIdx, i};
+            return packPrevCurr(prevIdx, i);
         }
     }
 
@@ -414,9 +428,9 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
     public void add(int index, E element) {
         rangeCheckForAdd(index);
         if (index == size) { addLast(element); return; }
-        int[] pv = locateWithPrev(index);
-        int before = pv[0];
-        int after = pv[1];
+        long pv = locateWithPrev(index);
+        int before = unpackPrev(pv);
+        int after = unpackCurr(pv);
         int idx = allocateSlot();
         elementData[idx] = element;
         linkBetween(before, idx, after);
@@ -424,9 +438,9 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
 
     @Override
     public E remove(int index) {
-        int[] pv = locateWithPrev(index);
-        int p = pv[0];
-        int idx = pv[1];
+        long pv = locateWithPrev(index);
+        int p = unpackPrev(pv);
+        int idx = unpackCurr(pv);
         int n = getNext(idx, p);
         return unlinkIndex(idx, p, n);
     }
