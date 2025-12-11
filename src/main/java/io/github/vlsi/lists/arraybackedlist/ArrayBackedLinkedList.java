@@ -51,8 +51,8 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
     private static final int DEFAULT_CAPACITY = 10;
 
     transient Object[] elementData;
-    transient int[] next;
-    transient int[] prev;
+    // XOR links: for each index i, link[i] = enc(prev(i)) XOR enc(next(i)), where enc(-1)=0, enc(x>=0)=x+1
+    transient int[] link;
 
     // Head/tail physical indices in arrays; -1 means empty
     private int head = -1;
@@ -77,8 +77,7 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
 
     public ArrayBackedLinkedList() {
         this.elementData = new Object[0];
-        this.next = new int[0];
-        this.prev = new int[0];
+        this.link = new int[0];
         this.allocated = 0;
     }
 
@@ -88,7 +87,7 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
     }
 
     // Capacity management (based on ArrayList grow rules)
-    private void ensureCapacityInternal(int minCapacity) {
+    private void ensureCapacity(int minCapacity) {
         if (elementData.length < minCapacity) {
             grow(minCapacity);
         }
@@ -100,111 +99,148 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
         if (newCap < minCapacity) newCap = minCapacity;
         if (newCap < DEFAULT_CAPACITY) newCap = DEFAULT_CAPACITY;
         elementData = Arrays.copyOf(elementData, newCap);
-        next = Arrays.copyOf(next, newCap);
-        prev = Arrays.copyOf(prev, newCap);
+        link = Arrays.copyOf(link, newCap);
     }
 
     private int allocateSlot() {
         if (!freeQueue.isEmpty()) {
             return freeQueue.removeFirst();
         }
-        int idx = allocated;
+        int idx = allocated++;
         if (idx >= elementData.length) {
-            ensureCapacityInternal(idx + 1);
+            ensureCapacity(idx + 1);
         }
-        allocated = idx + 1;
         return idx;
     }
 
-    private void linkAfter(int before, int idx) {
-        // Insert after physical index 'before'. If before == -1, insert at head.
-        if (before == -1) {
-            // insert at head
-            int oldHead = head;
+    private int getNext(int idx, int prevIdx) {
+        if (idx == -1) return -1;
+        int e = link[idx] ^ prevIdx + 1;
+        return e - 1;
+    }
+
+    private int getPrev(int idx, int nextIdx) {
+        if (idx == -1) return -1;
+        int e = link[idx] ^ nextIdx + 1;
+        return e - 1;
+    }
+
+    private void setNeighbors(int idx, int prevIdx, int nextIdx) {
+        link[idx] = prevIdx + 1 ^ nextIdx + 1;
+    }
+
+    // Pack two ints (prev, curr) into a single long to avoid array allocation.
+    // High 32 bits = prev, low 32 bits = curr.
+    private static long packPrevCurr(int prev, int curr) {
+        return ((long) prev << 32) | (curr & 0xFFFFFFFFL);
+    }
+
+    private static int unpackPrev(long packed) {
+        return (int) (packed >>> 32);
+    }
+
+    private static int unpackCurr(long packed) {
+        return (int) packed;
+    }
+
+    // Helper that inserts idx between before and after in O(1) using XOR math.
+    // before and after are adjacent neighbors in the current list (either may be -1 for ends).
+    private void linkBetween(int before, int idx, int after) {
+        // set neighbors for the new node first
+        setNeighbors(idx, before, after);
+        if (before != -1) {
+            int bp = getPrev(before, after); // compute previous of 'before' quickly
+            setNeighbors(before, bp, idx);
+        } else {
             head = idx;
-            prev[idx] = -1;
-            next[idx] = oldHead;
-            if (oldHead != -1) {
-                prev[oldHead] = idx;
-            } else {
-                tail = idx; // first element
-            }
-        } else {
-            int after = next[before];
-            next[before] = idx;
-            prev[idx] = before;
-            next[idx] = after;
-            if (after != -1) {
-                prev[after] = idx;
-            } else {
-                tail = idx; // appended at end
-            }
         }
-        size++;
-        modCount++;
-    }
-
-    private void linkBefore(int after, int idx) {
-        // Insert before physical index 'after'. If after == -1, insert at tail.
-        if (after == -1) {
-            // insert at tail
-            int oldTail = tail;
+        if (after != -1) {
+            int an = getNext(after, before); // compute next of 'after' quickly
+            setNeighbors(after, idx, an);
+        } else {
             tail = idx;
-            next[idx] = -1;
-            prev[idx] = oldTail;
-            if (oldTail != -1) {
-                next[oldTail] = idx;
-            } else {
-                head = idx; // first element
-            }
-        } else {
-            int before = prev[after];
-            prev[after] = idx;
-            next[idx] = after;
-            prev[idx] = before;
-            if (before != -1) {
-                next[before] = idx;
-            } else {
-                head = idx;
-            }
         }
         size++;
         modCount++;
     }
 
-    private E unlinkIndex(int idx) {
+    // Locate physical index at logical index along with its previous physical neighbor.
+    // Returns a packed long where high 32 bits = prev, low 32 bits = curr. For index==size, returns pack(tail, -1).
+    private long locateWithPrev(int index) {
+        if (index < 0 || index > size) throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+        if (index == size) {
+            return packPrevCurr(tail, -1);
+        }
+        if (index == 0) {
+            return packPrevCurr(-1, head);
+        }
+        if (index < (size >> 1)) {
+            int prevIdx = -1;
+            int i = head;
+            for (int k = 0; k < index; k++) {
+                int nxt = getNext(i, prevIdx);
+                prevIdx = i;
+                i = nxt;
+            }
+            return packPrevCurr(prevIdx, i);
+        } else {
+            int nextIdx = -1;
+            int i = tail;
+            for (int k = size - 1; k > index; k--) {
+                int prv = getPrev(i, nextIdx);
+                nextIdx = i;
+                i = prv;
+            }
+            // i is curr at position index, nextIdx is its right neighbor
+            int prevIdx = getPrev(i, nextIdx);
+            return packPrevCurr(prevIdx, i);
+        }
+    }
+
+    private E unlinkIndex(int idx, int p, int n) {
         @SuppressWarnings("unchecked") E old = (E) elementData[idx];
-        int p = prev[idx];
-        int n = next[idx];
         if (p != -1) {
-            next[p] = n;
+            int pp = getPrev(p, idx);
+            setNeighbors(p, pp, n);
         } else {
             head = n;
         }
         if (n != -1) {
-            prev[n] = p;
+            int nn = getNext(n, idx);
+            setNeighbors(n, p, nn);
         } else {
             tail = p;
         }
         elementData[idx] = null;
-        prev[idx] = next[idx] = -1;
+        setNeighbors(idx, -1, -1);
         freeQueue.addLast(idx);
         size--;
         modCount++;
         return old;
     }
 
+
     // Helpers to navigate logical index -> physical index
     private int physicalIndexAt(int index) {
         rangeCheck(index);
         // Choose direction for traversal
         if (index < (size >> 1)) {
+            int prevIdx = -1;
             int i = head;
-            for (int k = 0; k < index; k++) i = next[i];
+            for (int k = 0; k < index; k++) {
+                int nxt = getNext(i, prevIdx);
+                prevIdx = i;
+                i = nxt;
+            }
             return i;
         } else {
+            int nextIdx = -1;
             int i = tail;
-            for (int k = size - 1; k > index; k--) i = prev[i];
+            for (int k = size - 1; k > index; k--) {
+                int prv = getPrev(i, nextIdx);
+                nextIdx = i;
+                i = prv;
+            }
             return i;
         }
     }
@@ -233,7 +269,7 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
         int idx = allocateSlot();
         elementData[idx] = e;
         // inserting before current head
-        linkBefore(head, idx);
+        linkBetween(-1, idx, head);
     }
 
     @Override
@@ -241,19 +277,23 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
         int idx = allocateSlot();
         elementData[idx] = e;
         // inserting after current tail
-        linkAfter(tail, idx);
+        linkBetween(tail, idx, -1);
     }
 
     @Override
     public E removeFirst() {
         if (size == 0) throw new NoSuchElementException();
-        return unlinkIndex(head);
+        int idx = head;
+        int n = getNext(idx, -1);
+        return unlinkIndex(idx, -1, n);
     }
 
     @Override
     public E removeLast() {
         if (size == 0) throw new NoSuchElementException();
-        return unlinkIndex(tail);
+        int idx = tail;
+        int p = getPrev(idx, -1);
+        return unlinkIndex(idx, p, -1);
     }
 
     @Override
@@ -277,10 +317,20 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
     public boolean offerLast(E e) { addLast(e); return true; }
 
     @Override
-    public E pollFirst() { return size == 0 ? null : unlinkIndex(head); }
+    public E pollFirst() { 
+        if (size == 0) return null; 
+        int idx = head; 
+        int n = getNext(idx, -1);
+        return unlinkIndex(idx, -1, n);
+    }
 
     @Override
-    public E pollLast() { return size == 0 ? null : unlinkIndex(tail); }
+    public E pollLast() { 
+        if (size == 0) return null; 
+        int idx = tail; 
+        int p = getPrev(idx, -1);
+        return unlinkIndex(idx, p, -1);
+    }
 
     @Override
     public E peekFirst() { return size == 0 ? null : getFirst(); }
@@ -291,16 +341,29 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
     @Override
     public boolean removeFirstOccurrence(Object o) {
         if (size == 0) return false;
+        int prev = -1;
         int i = head;
         if (o == null) {
             while (i != -1) {
-                if (elementData[i] == null) { unlinkIndex(i); return true; }
-                i = next[i];
+                if (elementData[i] == null) { 
+                    int n = getNext(i, prev);
+                    unlinkIndex(i, prev, n);
+                    return true; 
+                }
+                int nxt = getNext(i, prev);
+                prev = i;
+                i = nxt;
             }
         } else {
             while (i != -1) {
-                if (o.equals(elementData[i])) { unlinkIndex(i); return true; }
-                i = next[i];
+                if (o.equals(elementData[i])) { 
+                    int n = getNext(i, prev);
+                    unlinkIndex(i, prev, n);
+                    return true; 
+                }
+                int nxt = getNext(i, prev);
+                prev = i;
+                i = nxt;
             }
         }
         return false;
@@ -309,16 +372,29 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
     @Override
     public boolean removeLastOccurrence(Object o) {
         if (size == 0) return false;
+        int nextIdx = -1;
         int i = tail;
         if (o == null) {
             while (i != -1) {
-                if (elementData[i] == null) { unlinkIndex(i); return true; }
-                i = prev[i];
+                if (elementData[i] == null) { 
+                    int p = getPrev(i, nextIdx);
+                    unlinkIndex(i, p, nextIdx);
+                    return true; 
+                }
+                int prv = getPrev(i, nextIdx);
+                nextIdx = i;
+                i = prv;
             }
         } else {
             while (i != -1) {
-                if (o.equals(elementData[i])) { unlinkIndex(i); return true; }
-                i = prev[i];
+                if (o.equals(elementData[i])) { 
+                    int p = getPrev(i, nextIdx);
+                    unlinkIndex(i, p, nextIdx);
+                    return true; 
+                }
+                int prv = getPrev(i, nextIdx);
+                nextIdx = i;
+                i = prv;
             }
         }
         return false;
@@ -352,23 +428,27 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
     public void add(int index, E element) {
         rangeCheckForAdd(index);
         if (index == size) { addLast(element); return; }
-        int after = physicalIndexAt(index);
+        long pv = locateWithPrev(index);
+        int before = unpackPrev(pv);
+        int after = unpackCurr(pv);
         int idx = allocateSlot();
         elementData[idx] = element;
-        linkBefore(after, idx);
+        linkBetween(before, idx, after);
     }
 
     @Override
     public E remove(int index) {
-        int idx = physicalIndexAt(index);
-        return unlinkIndex(idx);
+        long pv = locateWithPrev(index);
+        int p = unpackPrev(pv);
+        int idx = unpackCurr(pv);
+        int n = getNext(idx, p);
+        return unlinkIndex(idx, p, n);
     }
 
     @Override
     public void clear() {
         Arrays.fill(elementData, 0, allocated, null);
-        Arrays.fill(next, 0, allocated, 0);
-        Arrays.fill(prev, 0, allocated, 0);
+        Arrays.fill(link, 0, allocated, 0);
         head = tail = -1;
         size = 0;
         freeQueue.clear();
@@ -383,31 +463,11 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
 
     @Override
     public Iterator<E> descendingIterator() {
+        ListIterator<E> it = listIterator(size());
         return new Iterator<E>() {
-            private int expectedModCount = modCount;
-            private int curr = tail;
-            private int lastReturned = -1;
-            private void check() { if (expectedModCount != modCount) throw new ConcurrentModificationException(); }
-            @Override public boolean hasNext() { return curr != -1; }
-            @Override public E next() {
-                check();
-                if (curr == -1) throw new NoSuchElementException();
-                int c = curr;
-                curr = prev[c];
-                lastReturned = c;
-                @SuppressWarnings("unchecked") E e = (E) elementData[c];
-                return e;
-            }
-            @Override public void remove() {
-                check();
-                if (lastReturned == -1) throw new IllegalStateException();
-                int lr = lastReturned;
-                // adjust curr if needed
-                if (curr == lr) curr = prev[lr];
-                unlinkIndex(lr);
-                lastReturned = -1;
-                expectedModCount = modCount;
-            }
+            @Override public boolean hasNext() { return it.hasPrevious(); }
+            @Override public E next() { return it.previous(); }
+            @Override public void remove() { it.remove(); }
         };
     }
 
@@ -415,20 +475,19 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
         private int expectedModCount = modCount;
         private int nextIndex; // logical index of next()
         private int nextPhys;  // physical index of next element or -1
+        private int prevOfNext; // physical index of previous element for nextPhys (or -1 if none)
         private int lastReturned = -1; // physical index of last returned by next/previous
+        private boolean lastReturnedWasNext = false;
 
         ABLIterator(int start) {
             this.nextIndex = start;
-            if (start == size) {
-                nextPhys = -1; // end
+            this.nextPhys = (start == size) ? -1 : physicalIndexAt(start);
+            if (start == 0) {
+                this.prevOfNext = -1;
+            } else if (start == size) {
+                this.prevOfNext = tail;
             } else {
-                nextPhys = (start < (size >> 1)) ? head : tail;
-                if (start < (size >> 1)) {
-                    for (int i = 0; i < start; i++) nextPhys = next[nextPhys];
-                } else {
-                    // Move backwards from tail to the element at logical index 'start'
-                    for (int i = size - 1; i > start; i--) nextPhys = prev[nextPhys];
-                }
+                this.prevOfNext = physicalIndexAt(start - 1);
             }
         }
 
@@ -444,7 +503,12 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
             int phys = (nextPhys == -1) ? head : nextPhys;
             @SuppressWarnings("unchecked") E e = (E) elementData[phys];
             lastReturned = phys;
-            nextPhys = next[phys];
+            lastReturnedWasNext = true;
+            // advance forward using XOR
+            int prevForPhys = (nextPhys == -1) ? -1 : prevOfNext;
+            int newNext = getNext(phys, prevForPhys);
+            prevOfNext = phys;
+            nextPhys = newNext;
             nextIndex++;
             return e;
         }
@@ -455,15 +519,18 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
             checkForComodification();
             if (!hasPrevious()) throw new NoSuchElementException();
             int phys;
-            if (nextIndex == size) {
+            if (nextIndex == size || nextPhys == -1) {
                 phys = tail;
-            } else if (nextPhys == -1) {
-                phys = tail;
+                prevOfNext = getPrev(phys, -1);
             } else {
-                phys = prev[nextPhys];
+                phys = prevOfNext;
+                // old next is nextPhys; compute new prevOfNext relative to that
+                int oldNext = nextPhys;
+                prevOfNext = getPrev(phys, oldNext);
             }
             @SuppressWarnings("unchecked") E e = (E) elementData[phys];
             lastReturned = phys;
+            lastReturnedWasNext = false;
             nextPhys = phys; // previous() moves back, so next call to next() should return this phys's next
             nextIndex--;
             return e;
@@ -476,14 +543,22 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
             checkForComodification();
             if (lastReturned == -1) throw new IllegalStateException();
             int lr = lastReturned;
-            // adjust iterator's next references
-            int lrNext = next[lr];
-            unlinkIndex(lr);
-            if (nextPhys == lr) nextPhys = lrNext; // if last op was previous()
-            if (nextIndex > 0 && lrNext == nextPhys) {
-                // removed element before next, shift nextIndex back
+            int p, n;
+            if (lastReturnedWasNext) {
+                // After next(), cursor already advanced: nextPhys points to successor of lr
+                n = nextPhys;
+                p = getPrev(lr, n);
                 nextIndex--;
+                // nextPhys remains n
+                prevOfNext = p;
+            } else {
+                // After previous(), cursor moved back: nextPhys equals lr, prevOfNext is predecessor of lr
+                p = prevOfNext;
+                n = getNext(lr, p);
+                // nextIndex unchanged; nextPhys should become successor of removed lr
+                nextPhys = n;
             }
+            unlinkIndex(lr, p, n);
             lastReturned = -1;
             expectedModCount = modCount;
         }
@@ -497,17 +572,26 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
         @Override public void add(E e) {
             checkForComodification();
             if (nextIndex == size) {
+                // append to the end
                 addLast(e);
+                // After add, previous() must return the added element
+                prevOfNext = tail; // tail is the newly added element
+                nextPhys = -1; // still at end
             } else {
-                int after = (nextPhys == -1) ? tail : prev[nextPhys];
+                int after = (nextPhys == -1) ? tail : prevOfNext;
                 int idx = allocateSlot();
                 elementData[idx] = e;
                 // insert between 'after' and 'nextPhys'
                 if (nextPhys == -1) {
-                    linkAfter(after, idx);
+                    // insert at the end after 'after'
+                    linkBetween(after, idx, -1);
                 } else {
-                    linkBefore(nextPhys, idx);
+                    // insert between 'after' and 'nextPhys'
+                    linkBetween(after, idx, nextPhys);
                 }
+                // After insertion before nextPhys, next() should still return original nextPhys,
+                // and previous() should return the newly inserted element
+                prevOfNext = idx;
             }
             nextIndex++;
             lastReturned = -1;
@@ -533,8 +617,7 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
         s.defaultReadObject();
         // Reinitialize transient fields
         this.elementData = new Object[0];
-        this.next = new int[0];
-        this.prev = new int[0];
+        this.link = new int[0];
         this.freeQueue = new ArrayDeque<>();
         this.head = -1;
         this.tail = -1;
@@ -639,8 +722,7 @@ public class ArrayBackedLinkedList<E> extends AbstractSequentialList<E>
             ArrayBackedLinkedList<E> clone = (ArrayBackedLinkedList<E>) super.clone();
             // Deep copy the transient arrays and free queue to ensure independence
             clone.elementData = Arrays.copyOf(this.elementData, this.elementData.length);
-            clone.next = Arrays.copyOf(this.next, this.next.length);
-            clone.prev = Arrays.copyOf(this.prev, this.prev.length);
+            clone.link = Arrays.copyOf(this.link, this.link.length);
             clone.freeQueue = new ArrayDeque<>(this.freeQueue);
             // Reset structural modification count for the clone (similar to ArrayList/SegmentedLinkedList behavior)
             clone.modCount = 0;
